@@ -70,12 +70,12 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 	serverAddr, err := userdatahelper.GetServerAddressFromKubeconfig(req.Kubeconfig)
 	if err != nil {
 		return "", fmt.Errorf("error extracting server address from kubeconfig: %v", err)
-	}
+	}*/
 
 	kubeconfigString, err := userdatahelper.StringifyKubeconfig(req.Kubeconfig)
 	if err != nil {
 		return "", err
-	}*/
+	}
 
 	kubernetesCACert, err := userdatahelper.GetCACert(req.Kubeconfig)
 	if err != nil {
@@ -117,7 +117,7 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 	}
 
 	//TODO(irozzo) hardcoded template path
-	conf, err := GenerateIgnitionForRole(rc, defaultSSHConfig(pconfig.SSHPublicKeys), "worker", "/etc/templates")
+	conf, err := GenerateIgnitionForRole(rc, defaultConfig(pconfig.SSHPublicKeys, req.MachineSpec.Name, kubeconfigString), "worker", "/etc/templates")
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while generating ignition configuration: %v", err)
 	}

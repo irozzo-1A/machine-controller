@@ -32,7 +32,7 @@ func TestGenerateIgnitionForRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateIgnitionForRole(tt.args.config, defaultSSHConfig([]string{"ssh-rsa AAAAB3Nza..."}), tt.args.role, tt.args.templateDir)
+			got, err := GenerateIgnitionForRole(tt.args.config, defaultConfig([]string{"ssh-rsa AAAAB3Nza..."}, "hostname", "kubeconfig"), tt.args.role, tt.args.templateDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateIgnitionForRole() error = %v, wantErr %v", err, tt.wantErr)
 				return

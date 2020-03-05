@@ -105,12 +105,58 @@ type NamedIgnitionConfig struct {
 	Config igntypes.Config
 }
 
-func defaultSSHConfig(sshKeys []string) []*NamedIgnitionConfig {
+func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*NamedIgnitionConfig {
+	intToPointer := func(i int) *int {
+		a := i
+		return &a
+	}
 	authKeys := []igntypes.SSHAuthorizedKey{}
 	for _, key := range sshKeys {
 		authKeys = append(authKeys, igntypes.SSHAuthorizedKey(key))
 	}
 	return []*NamedIgnitionConfig{
+		&NamedIgnitionConfig{
+			Name: "97-worker-hostname",
+			Config: igntypes.Config{
+				Storage: igntypes.Storage{
+					Files: []igntypes.File{
+						igntypes.File{
+							Node: igntypes.Node{
+								Filesystem: "root",
+								Path:       "/etc/hostname",
+							},
+							FileEmbedded1: igntypes.FileEmbedded1{
+								Mode: intToPointer(420),
+								Contents: igntypes.FileContents{
+									Source: fmt.Sprintf("data:,%s", hostname),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		&NamedIgnitionConfig{
+			Name: "98-worker-bootstrap-kubeconfig",
+			Config: igntypes.Config{
+				Storage: igntypes.Storage{
+					Files: []igntypes.File{
+						igntypes.File{
+							Node: igntypes.Node{
+								Filesystem: "root",
+								Path:       "/etc/kubernetes/kubeconfig",
+							},
+							FileEmbedded1: igntypes.FileEmbedded1{
+								Mode: intToPointer(420),
+								Contents: igntypes.FileContents{
+									Source: fmt.Sprintf("data:,%s", bootstrapKubeconfig),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		&NamedIgnitionConfig{
 			Name: "99-worker-ssh",
 			Config: igntypes.Config{
