@@ -128,7 +128,7 @@ func createClonedVM(ctx context.Context, vmName string, config *Config, session 
 
 		for _, item := range mvm.Config.VAppConfig.GetVmConfigInfo().Property {
 			switch item.Id {
-			case "guestinfo.coreos.config.data":
+			case "guestinfo.ignition.config.data":
 				propertySpecs = append(propertySpecs, types.VAppPropertySpec{
 					ArrayUpdateSpec: types.ArrayUpdateSpec{
 						Operation: types.ArrayUpdateOperationEdit,
@@ -139,7 +139,7 @@ func createClonedVM(ctx context.Context, vmName string, config *Config, session 
 						Value: userdataBase64,
 					},
 				})
-			case "guestinfo.coreos.config.data.encoding":
+			case "guestinfo.ignition.config.data.encoding":
 				propertySpecs = append(propertySpecs, types.VAppPropertySpec{
 					ArrayUpdateSpec: types.ArrayUpdateSpec{
 						Operation: types.ArrayUpdateOperationEdit,
