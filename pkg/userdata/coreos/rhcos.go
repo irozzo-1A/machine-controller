@@ -87,7 +87,7 @@ type RenderConfig struct {
 
 	// pullSecret is the default pull secret that needs to be installed
 	// on all machines.
-	PullSecret []byte `json:"pullSecret"`
+	PullSecret string `json:"pullSecret"`
 
 	// images is map of images that are used by the controller to render templates under ./templates/
 	Images map[string]string `json:"images"`

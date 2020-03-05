@@ -1,6 +1,7 @@
 package coreos
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,6 +87,11 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 		return "", errors.New("dockercfg must not be empty")
 	}
 
+	buf := &bytes.Buffer{}
+	if err := json.Compact(buf, []byte(dockerPullSecret)); err != nil {
+		return "", fmt.Errorf("couldn't compact pullsecret %q: %v", dockerPullSecret, err)
+	}
+
 	// The OpenShift 4 minor release is: Kubernetes minor - 12
 	// We require it to download some tooling which follows the Kubernetes versioning
 	// kubernetesMinor := openShiftVersion.Minor() + 12
@@ -106,7 +112,7 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 			HTTPProxy: req.HTTPProxy,
 			NoProxy:   req.NoProxy,
 		},
-		PullSecret: []byte(dockerPullSecret),
+		PullSecret: string(buf.Bytes()),
 		RootCAData: []byte(kubernetesCACert),
 	}
 
