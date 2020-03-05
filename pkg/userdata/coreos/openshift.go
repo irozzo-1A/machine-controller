@@ -1,0 +1,497 @@
+package coreos
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/kubermatic/machine-controller/pkg/apis/plugin"
+	providerconfig "github.com/kubermatic/machine-controller/pkg/providerconfig/types"
+	userdatahelper "github.com/kubermatic/machine-controller/pkg/userdata/helper"
+
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const DockerCFGEnvKey = "OPENSHIFT_DOCKER_CFG"
+
+func getConfig(r runtime.RawExtension) (*Config, error) {
+	p := Config{}
+	if len(r.Raw) == 0 {
+		return &p, nil
+	}
+	if err := json.Unmarshal(r.Raw, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// Config contains CentOS specific settings. It's being used within the provider spec (Inside the MachineSpec)
+type Config struct {
+	DistUpgradeOnBoot bool `json:"distUpgradeOnBoot"`
+}
+
+// Provider is a pkg/userdata.Provider implementation
+type Provider struct{}
+
+// UserData renders a cloud-init script to provision a worker OpenShift node
+// The content of this cloud-init comes from the OpenShift machine-config-operator: https://github.com/openshift/machine-config-operator/tree/release-4.1/templates/worker
+func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
+
+	/*tmpl, err := template.New("user-data").Funcs(userdatahelper.TxtFuncMap()).Parse(userdataTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse user-data template: %v", err)
+	}*/
+
+	/*openShiftVersion, err := semver.NewVersion(req.MachineSpec.Versions.Kubelet)
+	if err != nil {
+		return "", fmt.Errorf("invalid kubelet version: '%v'", err)
+	}*/
+
+	pconfig, err := providerconfig.GetConfig(req.MachineSpec.ProviderSpec)
+	if err != nil {
+		return "", fmt.Errorf("failed to get provider config: %v", err)
+	}
+
+	if pconfig.OverwriteCloudConfig != nil {
+		req.CloudConfig = *pconfig.OverwriteCloudConfig
+	}
+
+	if pconfig.Network != nil {
+		return "", errors.New("static IP config is not supported with CentOS")
+	}
+
+	/*osConfig, err := getConfig(pconfig.OperatingSystemSpec)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse OperatingSystemSpec: '%v'", err)
+	}
+
+	serverAddr, err := userdatahelper.GetServerAddressFromKubeconfig(req.Kubeconfig)
+	if err != nil {
+		return "", fmt.Errorf("error extracting server address from kubeconfig: %v", err)
+	}
+
+	kubeconfigString, err := userdatahelper.StringifyKubeconfig(req.Kubeconfig)
+	if err != nil {
+		return "", err
+	}*/
+
+	kubernetesCACert, err := userdatahelper.GetCACert(req.Kubeconfig)
+	if err != nil {
+		return "", fmt.Errorf("error extracting cacert: %v", err)
+	}
+
+	dockerPullSecret := os.Getenv(DockerCFGEnvKey)
+	if dockerPullSecret == "" {
+		return "", errors.New("dockercfg must not be empty")
+	}
+
+	// The OpenShift 4 minor release is: Kubernetes minor - 12
+	// We require it to download some tooling which follows the Kubernetes versioning
+	// kubernetesMinor := openShiftVersion.Minor() + 12
+
+	images := map[string]string{
+		"infraImageKey": "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:eecfb226f846530f7ffbc52701bb4d6875bfc67f41e7ded69e99a0111a5bfd91",
+	}
+	rc := &RenderConfig{
+		CloudProviderConfig: req.CloudConfig,
+		//TODO(irozzo) maybe we could submit a PR upstream to support multple DNS
+		ClusterDNSIP: req.DNSIPs[0].String(),
+		Images:       images,
+		//TODO(irozzo) Where this is supposed to comes from??
+		KubeAPIServerServingCAData: []byte{},
+		//TODO(irozzo) Shoul not be hardcoded obviously.
+		Platform: "vsphere",
+		Proxy: ProxyStatus{
+			HTTPProxy: req.HTTPProxy,
+			NoProxy:   req.NoProxy,
+		},
+		PullSecret: []byte(dockerPullSecret),
+		RootCAData: []byte(kubernetesCACert),
+	}
+
+	//TODO(irozzo) hardcoded template path
+	conf, err := GenerateIgnitionForRole(rc, defaultSSHConfig(pconfig.SSHPublicKeys), "worker", "/etc/templates")
+	if err != nil {
+		return "", fmt.Errorf("Error occurred while generating ignition configuration: %v", err)
+	}
+
+	rawConf, err := json.Marshal(conf)
+	if err != nil {
+		return "", fmt.Errorf("Error occurred while marshaling ignition configuration: %v", err)
+	}
+
+	return string(rawConf), nil
+
+	/*data := struct {
+			plugin.UserDataRequest
+			ProviderSpec          *providerconfig.Config
+			OSConfig              *Config
+			OpenShiftVersion      string
+			OpenShiftMinorVersion string
+			ServerAddr            string
+			Kubeconfig            string
+			KubernetesCACert      string
+			DockerPullSecret      string
+			CRIORepo              string
+		}{
+			UserDataRequest:       req,
+			ProviderSpec:          pconfig,
+			OSConfig:              osConfig,
+			OpenShiftVersion:      openShiftVersion.String(),
+			OpenShiftMinorVersion: fmt.Sprintf("%d.%d", openShiftVersion.Major(), openShiftVersion.Minor()),
+			ServerAddr:            serverAddr,
+			Kubeconfig:            kubeconfigString,
+			KubernetesCACert:      kubernetesCACert,
+			DockerPullSecret:      dockerPullSecret,
+			// There is a CRI-O release for every Kubernetes release.
+			CRIORepo: fmt.Sprintf("https://cbs.centos.org/repos/paas7-crio-1%d-candidate/x86_64/os/", kubernetesMinor),
+		}
+		b := &bytes.Buffer{}
+		err = tmpl.Execute(b, data)
+		if err != nil {
+			return "", fmt.Errorf("failed to execute user-data template: %v", err)
+		}
+	  return b.String(), nil*/
+}
+
+const userdataTemplate = `#cloud-config
+{{ if ne .CloudProviderName "aws" }}
+hostname: {{ .MachineSpec.Name }}
+# Never set the hostname on AWS nodes. Kubernetes(kube-proxy) requires the hostname to be the private dns name
+{{ end }}
+{{- if .OSConfig.DistUpgradeOnBoot }}
+package_upgrade: true
+package_reboot_if_required: true
+{{- end }}
+ssh_pwauth: no
+{{- if ne (len .ProviderSpec.SSHPublicKeys) 0 }}
+ssh_authorized_keys:
+{{- range .ProviderSpec.SSHPublicKeys }}
+  - "{{ . }}"
+{{- end }}
+{{- end }}
+write_files:
+
+- path: "/etc/systemd/journald.conf.d/max_disk_use.conf"
+  content: |
+{{ journalDConfig | indent 4 }}
+
+- path: "/etc/sysctl.d/99-openshift.conf"
+  content: |
+    net.ipv4.ip_forward=1
+
+- path: "/etc/yum.repos.d/crio.repo"
+  content: |
+    [crio]
+    name=CRI-O
+    baseurl={{ .CRIORepo }}
+    enabled=1
+    {{- /* The repo has no publickey. The Kubernetes docs also disable the gpg check: https://kubernetes.io/docs/setup/production-environment/container-runtimes/ */}}
+    gpgcheck=0
+
+- path: "/opt/bin/setup"
+  permissions: "0777"
+  content: |
+    #!/bin/bash
+    set -xeuo pipefail
+
+    # TODO: Figure out why the hyperkube binary installation does not work with selinux enabled
+    setenforce 0 || true
+
+    systemctl daemon-reload
+
+    # As we added some modules and don't want to reboot, restart the service
+    systemctl restart systemd-modules-load.service
+    sysctl --system
+
+    {{- if ne .CloudProviderName "aws" }}
+    # The normal way of setting it via cloud-init is broken:
+    # https://bugs.launchpad.net/cloud-init/+bug/1662542
+    hostnamectl set-hostname {{ .MachineSpec.Name }}
+    {{- end }}
+
+    if systemctl is-active firewalld; then systemctl stop firewalld; fi;
+    systemctl mask firewalld
+
+    # Coming from the upstream ansible playbook
+    # https://github.com/openshift/openshift-ansible/blob/release-4.1/roles/openshift_node/defaults/main.yml#L19
+    yum install -y  \
+      kernel \
+      irqbalance \
+      microcode_ctl \
+      systemd \
+      selinux-policy-targeted \
+      setools-console \
+      dracut-network \
+      passwd \
+      openssh-server \
+      openssh-clients \
+      podman \
+      skopeo \
+      runc \
+      containernetworking-plugins \
+      nfs-utils \
+      NetworkManager \
+      dnsmasq \
+      lvm2 \
+      iscsi-initiator-utils \
+      sg3_utils \
+      device-mapper-multipath \
+      xfsprogs \
+      e2fsprogs \
+      mdadm \
+      cryptsetup \
+      chrony \
+      logrotate \
+      sssd \
+      shadow-utils \
+      sudo \
+      coreutils \
+      less \
+      tar \
+      xz \
+      gzip \
+      bzip2 \
+      rsync \
+      tmux \
+      nmap-ncat \
+      net-tools \
+      bind-utils \
+      strace \
+      bash-completion \
+      vim-minimal \
+      nano \
+      authconfig \
+      policycoreutils-python \
+      iptables-services \
+      bridge-utils \
+      biosdevname \
+      container-storage-setup \
+      cloud-utils-growpart \
+      ceph-common \
+      cri-o \
+      cri-tools \
+      podman \ {{- /* # We install podman to be able to fetch the hyperkube image from the image */}}
+      glusterfs-fuse{{ if eq .CloudProviderName "vsphere" }} \
+      open-vm-tools{{ end }}
+    {{- if eq .CloudProviderName "vsphere" }}
+    systemctl enable --now vmtoolsd.service
+    {{ end }}
+
+    {{- /* We copy hyperkube from the upstream image as those are not available otherwise */}}
+    {{- /* TODO: Figure out how to handle the bugfix versions. The repo only has tags for minor versions. */}}
+    {{- /* We might delay decision on how to proceed here until RedHat has a release strategy for OpenShift for Fedora or CentOS. */}}
+    # TODO(irozzo) hack to fix https://github.com/cri-o/cri-o/issues/2779
+    [[ ! -f /etc/crio/seccomp.json && -f /usr/share/containers/seccomp.json ]] && ln -s /usr/share/containers/seccomp.json /etc/crio/seccomp.json
+    podman run \
+      -v /usr/bin:/host/usr/bin \
+      -ti quay.io/openshift/origin-hyperkube:{{ .OpenShiftMinorVersion }} \
+      cp /usr/bin/hyperkube /host/usr/bin/hyperkube
+
+    systemctl enable --now cri-o
+    systemctl enable --now kubelet
+
+- path: "/opt/bin/supervise.sh"
+  permissions: "0755"
+  content: |
+    #!/bin/bash
+    set -xeuo pipefail
+    while ! "$@"; do
+      sleep 1
+    done
+
+- path: "/etc/kubernetes/cloud-config"
+  content: |
+{{ .CloudConfig | indent 4 }}
+
+- path: "/etc/kubernetes/kubeconfig"
+  content: |
+{{ .Kubeconfig | indent 4 }}
+
+- path: "/etc/systemd/system/setup.service"
+  permissions: "0644"
+  content: |
+    [Install]
+    WantedBy=multi-user.target
+    [Unit]
+    Requires=network-online.target
+    After=network-online.target
+    [Service]
+    Type=oneshot
+    RemainAfterExit=true
+    ExecStart=/opt/bin/supervise.sh /opt/bin/setup
+
+- path: "/etc/kubernetes/kubelet.conf"
+  content: |
+    kind: KubeletConfiguration
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    authentication:
+      x509:
+        clientCAFile: /etc/kubernetes/kubelet-ca.crt
+      anonymous:
+        enabled: false
+    cgroupDriver: systemd
+    clusterDNS:
+    {{- range .DNSIPs }}
+      - "{{ . }}"
+    {{- end }}
+    clusterDomain: cluster.local
+    maxPods: 250
+    rotateCertificates: true
+    runtimeRequestTimeout: 10m
+    serializeImagePulls: false
+    staticPodPath: /etc/kubernetes/manifests
+    systemReserved:
+      cpu: 500m
+      memory: 500Mi
+    featureGates:
+      RotateKubeletServerCertificate: true
+      ExperimentalCriticalPodAnnotation: true
+      SupportPodPidsLimit: true
+      LocalStorageCapacityIsolation: false
+    serverTLSBootstrap: true
+
+- path: "/etc/systemd/system/kubelet.service"
+  content: |
+    [Unit]
+    Description=Kubernetes Kubelet
+    Wants=rpc-statd.service
+
+    [Service]
+    Type=notify
+    ExecStartPre=/bin/mkdir --parents /etc/kubernetes/manifests
+    ExecStartPre=/bin/rm -f /var/lib/kubelet/cpu_manager_state
+    EnvironmentFile=/etc/os-release
+    EnvironmentFile=-/etc/kubernetes/kubelet-workaround
+    EnvironmentFile=-/etc/kubernetes/kubelet-env
+
+    #TODO(irozzo) Run in container instead
+    ExecStart=/usr/bin/hyperkube \
+        kubelet \
+          --config=/etc/kubernetes/kubelet.conf \
+          --bootstrap-kubeconfig=/etc/kubernetes/kubeconfig \
+          --kubeconfig=/var/lib/kubelet/kubeconfig \
+          --container-runtime=remote \
+          --container-runtime-endpoint=/var/run/crio/crio.sock \
+          --node-labels=node-role.kubernetes.io/worker,node.openshift.io/os_id=${ID} \
+          --minimum-container-ttl-duration=6m0s \
+          --volume-plugin-dir=/etc/kubernetes/kubelet-plugins/volume/exec \
+          --client-ca-file=/etc/kubernetes/ca.crt \
+          {{- if .CloudProviderName }}
+          --cloud-provider={{ .CloudProviderName }} \
+          --cloud-config=/etc/kubernetes/cloud-config \
+          {{- end }}
+          --v=3 \
+
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+
+- path: "/etc/systemd/system.conf.d/kubelet-cgroups.conf"
+  content: |
+    # Turning on Accounting helps track down performance issues.
+    [Manager]
+    DefaultCPUAccounting=yes
+    DefaultMemoryAccounting=yes
+    DefaultBlockIOAccounting=yes
+
+- path: "/etc/systemd/system/kubelet.service.d/10-crio.conf"
+  content: |
+    [Unit]
+    After=crio.service
+    Requires=crio.service
+
+- path: "/etc/containers/registries.conf"
+  content: |
+    unqualified-search-registries = ['registry.access.redhat.com', 'docker.io']
+
+- path: "/etc/containers/storage.conf"
+  content: |
+    [storage]
+    driver = "overlay"
+    runroot = "/var/run/containers/storage"
+    graphroot = "/var/lib/containers/storage"
+    [storage.options]
+    additionalimagestores = [
+    ]
+    size = ""
+    override_kernel_check = "true"
+    [storage.options.thinpool]
+
+- path: /var/lib/kubelet/config.json
+  content: |
+{{ .DockerPullSecret | indent 4 }}
+
+- path: "/etc/kubernetes/ca.crt"
+  content: |
+{{ .KubernetesCACert | indent 4 }}
+
+- path: /etc/crio/crio.conf
+  content: |
+    [crio]
+    [crio.api]
+    listen = "/var/run/crio/crio.sock"
+    stream_address = ""
+    stream_port = "10010"
+    stream_enable_tls = false
+    stream_tls_cert = ""
+    stream_tls_key = ""
+    stream_tls_ca = ""
+    file_locking = false
+    [crio.runtime]
+    runtime = "/usr/bin/runc"
+    runtime_untrusted_workload = ""
+    default_workload_trust = "trusted"
+    no_pivot = false
+    conmon = "/usr/libexec/crio/conmon"
+    conmon_env = [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    ]
+    selinux = true
+    seccomp_profile = "/etc/crio/seccomp.json"
+    apparmor_profile = "crio-default"
+    cgroup_manager = "systemd"
+    default_capabilities = [
+      "CHOWN",
+      "DAC_OVERRIDE",
+      "FSETID",
+      "FOWNER",
+      "NET_RAW",
+      "SETGID",
+      "SETUID",
+      "SETPCAP",
+      "NET_BIND_SERVICE",
+      "SYS_CHROOT",
+      "KILL",
+    ]
+    hooks_dir_path = "/usr/share/containers/oci/hooks.d"
+    default_mounts = [
+      "/usr/share/rhel/secrets:/run/secrets",
+    ]
+    container_exits_dir = "/var/run/crio/exits"
+    pids_limit = 1024
+    log_size_max = -1
+    read_only = false
+    log_level = "error"
+    uid_mappings = ""
+    gid_mappings = ""
+    [crio.image]
+    default_transport = "docker://"
+    global_auth_file = "/var/lib/kubelet/config.json"
+    # pause_image is the image which we use to instantiate infra containers.
+    #TODO(irozzo) pause image should depend on the OpenShift version.
+    pause_image = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:eecfb226f846530f7ffbc52701bb4d6875bfc67f41e7ded69e99a0111a5bfd91"
+    pause_image_auth_file = "/var/lib/kubelet/config.json"
+    pause_command = "/usr/bin/pod"
+    signature_policy = ""
+    image_volumes = "mkdir"
+    [crio.network]
+    network_dir = "/etc/kubernetes/cni/net.d/"
+    plugin_dir = "/var/lib/cni/bin"
+
+runcmd:
+- systemctl enable --now setup.service
+`

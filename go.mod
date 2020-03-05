@@ -16,10 +16,10 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190828035149-111b102694f9
 	github.com/aokoli/goutils v1.0.1 // indirect
 	github.com/aws/aws-sdk-go v1.19.25
-	github.com/coreos/container-linux-config-transpiler v0.6.1
+	github.com/coreos/container-linux-config-transpiler v0.9.0
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/ignition v0.24.0 // indirect
+	github.com/coreos/ignition v0.26.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/digitalocean/godo v1.1.3
 	github.com/dnaeon/go-vcr v1.0.1 // indirect
@@ -84,6 +84,7 @@ require (
 	gopkg.in/ini.v1 v1.46.0 // indirect
 	gopkg.in/resty.v1 v1.12.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.15.10
 	k8s.io/apiextensions-apiserver v0.15.10
 	k8s.io/apimachinery v0.15.10
@@ -101,3 +102,5 @@ require (
 )
 
 replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.3.0+incompatible
+
+//replace k8s.io/klog => github.com/kubernetes/klog v1.0.0

@@ -1,0 +1,15 @@
+filesystem: "root"
+mode: 0644
+path: "/etc/containers/storage.conf"
+contents:
+  inline: |
+    [storage]
+    driver = "overlay"
+    runroot = "/var/run/containers/storage"
+    graphroot = "/var/lib/containers/storage"
+    [storage.options]
+    additionalimagestores = [
+    ]
+    size = ""
+    override_kernel_check = "true"
+    [storage.options.thinpool]

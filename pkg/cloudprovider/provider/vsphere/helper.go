@@ -109,6 +109,8 @@ func createClonedVM(ctx context.Context, vmName string, config *Config, session 
 
 	var vAppAconfig *types.VmConfigSpec
 	if containerLinuxUserdata != "" {
+
+		klog.V(4).Infof("Container linux userdata : %v", containerLinuxUserdata)
 		userdataBase64 := base64.StdEncoding.EncodeToString([]byte(containerLinuxUserdata))
 
 		// The properties describing userdata will already exist in the CoreOS VM template.

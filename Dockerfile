@@ -26,4 +26,4 @@ COPY --from=builder /go/src/github.com/kubermatic/machine-controller/machine-con
     /go/src/github.com/kubermatic/machine-controller/machine-controller-userdata-* \
     /go/src/github.com/kubermatic/machine-controller/webhook \
     /usr/local/bin/
-USER nobody
+COPY pkg/userdata/coreos/templates /etc/templates

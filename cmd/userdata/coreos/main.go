@@ -22,10 +22,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
-	"k8s.io/klog"
-
-	"github.com/kubermatic/machine-controller/pkg/userdata/convert"
 	"github.com/kubermatic/machine-controller/pkg/userdata/coreos"
 	userdataplugin "github.com/kubermatic/machine-controller/pkg/userdata/plugin"
 )
@@ -39,9 +37,9 @@ func main() {
 
 	// Instantiate provider and start plugin.
 	var provider = &coreos.Provider{}
-	var p = userdataplugin.New(convert.NewIgnition(provider), debug)
+	var p = userdataplugin.New(provider, debug)
 
 	if err := p.Run(); err != nil {
-		klog.Fatalf("error running CoreOS plugin: %v", err)
+		fmt.Errorf("error: %v", err)
 	}
 }

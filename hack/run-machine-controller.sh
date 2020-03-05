@@ -27,5 +27,5 @@ $(dirname $0)/../machine-controller \
   -logtostderr \
   -v=6 \
   -cluster-dns=172.16.0.10 \
-  -enable-profiling \
-  -internal-listen-address=0.0.0.0:8085
+  //-enable-profiling \
+  //-internal-listen-address=0.0.0.0:8088
