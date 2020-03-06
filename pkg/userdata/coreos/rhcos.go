@@ -107,7 +107,7 @@ type NamedIgnitionConfig struct {
 
 func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*NamedIgnitionConfig {
 	intToPointer := func(i int) *int {
-		a := i
+		var a int = i
 		return &a
 	}
 	authKeys := []igntypes.SSHAuthorizedKey{}
@@ -115,29 +115,23 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 		authKeys = append(authKeys, igntypes.SSHAuthorizedKey(key))
 	}
 	return []*NamedIgnitionConfig{
-		&NamedIgnitionConfig{
-			Name: "97-worker-hostname",
+		/*&NamedIgnitionConfig{
+			Name: "10-external-config",
 			Config: igntypes.Config{
-				Storage: igntypes.Storage{
-					Files: []igntypes.File{
-						igntypes.File{
-							Node: igntypes.Node{
-								Filesystem: "root",
-								Path:       "/etc/hostname",
-							},
-							FileEmbedded1: igntypes.FileEmbedded1{
-								Mode: intToPointer(420),
-								Contents: igntypes.FileContents{
-									Source: fmt.Sprintf("data:,%s", hostname),
-								},
+				Ignition: igntypes.Ignition{
+					Config: igntypes.IgnitionConfig{
+						Append: []igntypes.ConfigReference{
+							igntypes.ConfigReference{
+								Source:       "http://10.2.8.159:8080/worker.ign",
+								Verification: igntypes.Verification{},
 							},
 						},
 					},
 				},
 			},
-		},
+		},*/
 		&NamedIgnitionConfig{
-			Name: "98-worker-bootstrap-kubeconfig",
+			Name: "98-bootstrap-kubeconfig",
 			Config: igntypes.Config{
 				Storage: igntypes.Storage{
 					Files: []igntypes.File{
@@ -149,7 +143,8 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 							FileEmbedded1: igntypes.FileEmbedded1{
 								Mode: intToPointer(420),
 								Contents: igntypes.FileContents{
-									Source: fmt.Sprintf("data:,%s", bootstrapKubeconfig),
+									Source:       fmt.Sprintf("data:%s", bootstrapKubeconfig),
+									Verification: igntypes.Verification{},
 								},
 							},
 						},

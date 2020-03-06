@@ -105,7 +105,7 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 		ClusterDNSIP: req.DNSIPs[0].String(),
 		Images:       images,
 		//TODO(irozzo) Where this is supposed to comes from??
-		KubeAPIServerServingCAData: []byte{},
+		KubeAPIServerServingCAData: []byte(kubernetesCACert),
 		//TODO(irozzo) Shoul not be hardcoded obviously.
 		Platform: "vsphere",
 		Proxy: ProxyStatus{
