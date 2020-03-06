@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -52,6 +51,9 @@ type ProxyStatus struct {
 }
 
 type RenderConfig struct {
+	// I added this to render the default kubeconfig
+	Kubeconfig string `json:"-"`
+
 	// clusterDNSIP is the cluster DNS IP address
 	ClusterDNSIP string `json:"clusterDNSIP"`
 
@@ -106,11 +108,18 @@ type NamedIgnitionConfig struct {
 	Config igntypes.Config
 }
 
-func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*NamedIgnitionConfig {
-	intToPointer := func(i int) *int {
-		var a int = i
-		return &a
-	}
+const bootstrapKubeconfig = `filesystem: "root"
+mode: 420
+path: "/etc/kubernetes/kubeconfig"
+contents:
+  inline: |-
+{{indent 4 .Kubeconfig}}
+`
+
+func defaultConfig(cfg *RenderConfig, sshKeys []string) []*NamedIgnitionConfig {
+	out, _ := renderTemplate(*cfg, "kubeconfig.yaml", []byte(bootstrapKubeconfig))
+	bootstrapKubeconfig, _ := transpileToIgn([]string{string(out)}, []string{})
+
 	authKeys := []igntypes.SSHAuthorizedKey{}
 	for _, key := range sshKeys {
 		authKeys = append(authKeys, igntypes.SSHAuthorizedKey(key))
@@ -133,26 +142,8 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 			},
 		},*/
 		&NamedIgnitionConfig{
-			Name: "98-bootstrap-kubeconfig",
-			Config: igntypes.Config{
-				Storage: igntypes.Storage{
-					Files: []igntypes.File{
-						igntypes.File{
-							Node: igntypes.Node{
-								Filesystem: "root",
-								Path:       "/etc/kubernetes/kubeconfig",
-							},
-							FileEmbedded1: igntypes.FileEmbedded1{
-								Mode: intToPointer(420),
-								Contents: igntypes.FileContents{
-									Source:       fmt.Sprintf("data:,%s", url.QueryEscape(bootstrapKubeconfig)),
-									Verification: igntypes.Verification{},
-								},
-							},
-						},
-					},
-				},
-			},
+			Name:   "98-bootstrap-kubeconfig",
+			Config: *bootstrapKubeconfig,
 		},
 		&NamedIgnitionConfig{
 			Name: "99-worker-ssh",
