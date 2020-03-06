@@ -176,7 +176,7 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 // GenerateIgnition
 func GenerateIgnitionForRole(config *RenderConfig, defaultConf []*NamedIgnitionConfig, role, templateDir string) (*igntypes.Config, error) {
 	cfgs := defaultConf
-	/*path := filepath.Join(templateDir, role)
+	path := filepath.Join(templateDir, role)
 	infos, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dir %q: %v", path, err)
@@ -189,12 +189,12 @@ func GenerateIgnitionForRole(config *RenderConfig, defaultConf []*NamedIgnitionC
 		}
 		name := info.Name()
 		namePath := filepath.Join(path, name)
-		//nameConfig, err := generateIgnitionForName(config, role, name, templateDir, namePath)
+		nameConfig, err := generateIgnitionForName(config, role, name, templateDir, namePath)
 		if err != nil {
 			return nil, err
 		}
-		//cfgs = append(cfgs, nameConfig)
-	}*/
+		cfgs = append(cfgs, nameConfig)
+	}
 
 	return MergeIgnitionConfigs(cfgs), nil
 }
