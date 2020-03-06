@@ -114,6 +114,7 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 	for _, key := range sshKeys {
 		authKeys = append(authKeys, igntypes.SSHAuthorizedKey(key))
 	}
+
 	return []*NamedIgnitionConfig{
 		/*&NamedIgnitionConfig{
 			Name: "10-external-config",
@@ -143,7 +144,7 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 							FileEmbedded1: igntypes.FileEmbedded1{
 								Mode: intToPointer(420),
 								Contents: igntypes.FileContents{
-									Source:       fmt.Sprintf("data:%s", bootstrapKubeconfig),
+									Source:       fmt.Sprintf("data:,%s", bootstrapKubeconfig),
 									Verification: igntypes.Verification{},
 								},
 							},
