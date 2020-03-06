@@ -100,6 +100,7 @@ func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {
 		"infraImageKey": "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:eecfb226f846530f7ffbc52701bb4d6875bfc67f41e7ded69e99a0111a5bfd91",
 	}
 	rc := &RenderConfig{
+		Hostname:            req.MachineSpec.Name,
 		Kubeconfig:          kubeconfigString,
 		CloudProviderConfig: req.CloudConfig,
 		//TODO(irozzo) maybe we could submit a PR upstream to support multple DNS

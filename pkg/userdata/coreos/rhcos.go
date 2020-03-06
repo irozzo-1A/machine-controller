@@ -51,7 +51,8 @@ type ProxyStatus struct {
 }
 
 type RenderConfig struct {
-	// I added this to render the default kubeconfig
+	// I added the followings for the kubeconfig and the hostname
+	Hostname   string `json:"-"`
 	Kubeconfig string `json:"-"`
 
 	// clusterDNSIP is the cluster DNS IP address
@@ -116,9 +117,18 @@ contents:
 {{indent 4 .Kubeconfig}}
 `
 
+const hostname = `filesystem: "root"
+mode: 420
+path: "/etc/hostname"
+contents:
+  inline: |-
+{{indent 4 .Hostname}}
+`
+
 func defaultConfig(cfg *RenderConfig, sshKeys []string) []*NamedIgnitionConfig {
-	out, _ := renderTemplate(*cfg, "kubeconfig.yaml", []byte(bootstrapKubeconfig))
-	bootstrapKubeconfig, _ := transpileToIgn([]string{string(out)}, []string{})
+	bk, _ := renderTemplate(*cfg, "kubeconfig", []byte(bootstrapKubeconfig))
+	hostname, _ := renderTemplate(*cfg, "hostname", []byte(hostname))
+	defaultStorageConfig, _ := transpileToIgn([]string{string(bk), string(hostname)}, []string{})
 
 	authKeys := []igntypes.SSHAuthorizedKey{}
 	for _, key := range sshKeys {
@@ -126,24 +136,9 @@ func defaultConfig(cfg *RenderConfig, sshKeys []string) []*NamedIgnitionConfig {
 	}
 
 	return []*NamedIgnitionConfig{
-		/*&NamedIgnitionConfig{
-			Name: "10-external-config",
-			Config: igntypes.Config{
-				Ignition: igntypes.Ignition{
-					Config: igntypes.IgnitionConfig{
-						Append: []igntypes.ConfigReference{
-							igntypes.ConfigReference{
-								Source:       "http://10.2.8.159:8080/worker.ign",
-								Verification: igntypes.Verification{},
-							},
-						},
-					},
-				},
-			},
-		},*/
 		&NamedIgnitionConfig{
-			Name:   "98-bootstrap-kubeconfig",
-			Config: *bootstrapKubeconfig,
+			Name:   "98-default-storage-config",
+			Config: *defaultStorageConfig,
 		},
 		&NamedIgnitionConfig{
 			Name: "99-worker-ssh",
