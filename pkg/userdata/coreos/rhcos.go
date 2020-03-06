@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -144,7 +145,7 @@ func defaultConfig(sshKeys []string, hostname, bootstrapKubeconfig string) []*Na
 							FileEmbedded1: igntypes.FileEmbedded1{
 								Mode: intToPointer(420),
 								Contents: igntypes.FileContents{
-									Source:       fmt.Sprintf("data:,%s", bootstrapKubeconfig),
+									Source:       fmt.Sprintf("data:,%s", url.QueryEscape(bootstrapKubeconfig)),
 									Verification: igntypes.Verification{},
 								},
 							},
