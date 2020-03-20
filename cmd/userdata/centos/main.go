@@ -32,15 +32,23 @@ import (
 func main() {
 	// Parse flags.
 	var debug bool
+	var info bool
 
 	flag.BoolVar(&debug, "debug", false, "Switch for enabling the plugin debugging")
+	flag.BoolVar(&info, "info", false, "Suppress userdata output and pring plugin information instead")
 	flag.Parse()
 
 	// Instantiate provider and start plugin.
 	var provider = &centos.Provider{}
 	var p = userdataplugin.New(provider, debug)
 
-	if err := p.Run(); err != nil {
-		klog.Fatalf("error running CentOS plugin: %v", err)
+	if info {
+		if err := p.Info(); err != nil {
+			klog.Fatalf("error running CentOS plugin: %v", err)
+		}
+	} else {
+		if err := p.Run(); err != nil {
+			klog.Fatalf("error running CentOS plugin: %v", err)
+		}
 	}
 }

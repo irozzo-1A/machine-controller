@@ -20,7 +20,7 @@ import (
 	"flag"
 
 	"github.com/kubermatic/machine-controller/pkg/admission"
-	userdatamanager "github.com/kubermatic/machine-controller/pkg/userdata/manager"
+	userdatamanager "github.com/kubermatic/machine-controller/pkg/userdata/plugin"
 
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
@@ -60,7 +60,7 @@ func main() {
 		klog.Fatalf("failed to build client: %v", err)
 	}
 
-	um, err := userdatamanager.New()
+	um, err := userdatamanager.NewManager()
 	if err != nil {
 		klog.Fatalf("error initialising userdata plugins: %v", err)
 	}

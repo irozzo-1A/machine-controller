@@ -52,12 +52,19 @@ type UserDataRequest struct {
 	RegistryMirrors       []string
 	PauseImage            string
 	HyperkubeImage        string
+	OsVersion             string
 }
 
 // UserDataResponse contains the responded user data.
 type UserDataResponse struct {
 	UserData string
 	Err      string
+}
+
+// Info contains some information about the plugin.
+type Info struct {
+	OperatingSystem   string
+	SuppertedVersions []string
 }
 
 // ErrorResponse contains a single responded error.

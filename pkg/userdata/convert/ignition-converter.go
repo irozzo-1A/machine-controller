@@ -43,6 +43,10 @@ func (j *Ignition) UserData(req pluginapi.UserDataRequest) (string, error) {
 	return ToIgnition(before)
 }
 
+func (j *Ignition) Info() (*pluginapi.Info, error) {
+	return j.p.Info()
+}
+
 func ToIgnition(s string) (string, error) {
 	// Convert to ignition
 	cfg, ast, report := ctconfig.Parse([]byte(s))

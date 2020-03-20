@@ -34,7 +34,7 @@ import (
 	"k8s.io/klog"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	userdatamanager "github.com/kubermatic/machine-controller/pkg/userdata/manager"
+	userdatamanager "github.com/kubermatic/machine-controller/pkg/userdata/plugin"
 )
 
 type admissionData struct {

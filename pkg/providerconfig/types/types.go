@@ -40,6 +40,13 @@ const (
 	OperatingSystemRHEL   OperatingSystem = "rhel"
 )
 
+// OperatingSystemVersion defines the operating system version
+type OperatingSystemVersion string
+
+const (
+	DefaultOperatingSystemVersion OperatingSystemVersion = ""
+)
+
 type CloudProvider string
 
 const (
@@ -104,8 +111,9 @@ type Config struct {
 	CloudProvider     CloudProvider        `json:"cloudProvider"`
 	CloudProviderSpec runtime.RawExtension `json:"cloudProviderSpec"`
 
-	OperatingSystem     OperatingSystem      `json:"operatingSystem"`
-	OperatingSystemSpec runtime.RawExtension `json:"operatingSystemSpec"`
+	OperatingSystem        OperatingSystem        `json:"operatingSystem"`
+	OperatingSystemVersion OperatingSystemVersion `json:"operatingSystemVersion"`
+	OperatingSystemSpec    runtime.RawExtension   `json:"operatingSystemSpec"`
 
 	// +optional
 	Network *NetworkConfig `json:"network,omitempty"`
