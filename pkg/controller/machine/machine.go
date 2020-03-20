@@ -623,6 +623,7 @@ func (r *Reconciler) ensureInstanceExistsForMachine(
 				HyperkubeImage:        r.nodeSettings.HyperkubeImage,
 				NoProxy:               r.nodeSettings.NoProxy,
 				HTTPProxy:             r.nodeSettings.HTTPProxy,
+				OsVersion:             string(providerConfig.OperatingSystemVersion),
 			}
 			userdata, err := userdataPlugin.UserData(req)
 			if err != nil {
