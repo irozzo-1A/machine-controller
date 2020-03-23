@@ -35,7 +35,7 @@ func main() {
 	var info bool
 
 	flag.BoolVar(&debug, "debug", false, "Switch for enabling the plugin debugging")
-	flag.BoolVar(&info, "info", false, "Suppress userdata output and pring plugin information instead")
+	flag.BoolVar(&info, "info", false, "Suppress userdata output and print plugin information instead")
 	flag.Parse()
 
 	// Instantiate provider and start plugin.

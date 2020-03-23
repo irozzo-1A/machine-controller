@@ -36,7 +36,7 @@ func main() {
 	var info bool
 
 	flag.BoolVar(&debug, "debug", false, "Switch for enabling the plugin debugging")
-	flag.BoolVar(&info, "info", false, "Suppress userdata output and pring plugin information instead")
+	flag.BoolVar(&info, "info", false, "Suppress userdata output and print plugin information instead")
 	flag.Parse()
 
 	// Instantiate provider and start plugin.
@@ -45,11 +45,11 @@ func main() {
 
 	if info {
 		if err := p.Info(); err != nil {
-			klog.Fatalf("error running CentOS plugin: %v", err)
+			klog.Fatalf("error running CoreOS plugin: %v", err)
 		}
 	} else {
 		if err := p.Run(); err != nil {
-			klog.Fatalf("error running CentOS plugin: %v", err)
+			klog.Fatalf("error running CoreOS plugin: %v", err)
 		}
 	}
 }

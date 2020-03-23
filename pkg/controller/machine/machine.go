@@ -396,7 +396,7 @@ func (r *Reconciler) reconcile(machine *clusterv1alpha1.Machine) (*reconcile.Res
 	// Step 3: Essentially creates an instance for the given machine.
 	userdataPlugin, err := r.userDataManager.ForOS(providerConfig.OperatingSystem, providerConfig.OperatingSystemVersion)
 	if err != nil {
-		return nil, fmt.Errorf("failed to userdata provider for '%s': %v", providerConfig.OperatingSystem, err)
+		return nil, fmt.Errorf("failed to get userdata provider for '%s': %v", providerConfig.OperatingSystem, err)
 	}
 
 	// case 3.2: creates an instance if there is no node associated with the given machine

@@ -41,7 +41,7 @@ type Provider struct{}
 
 func (p Provider) Info() (*plugin.Info, error) {
 	return &plugin.Info{
-		OperatingSystem: string(providerconfigtypes.OperatingSystemSLES),
+		OperatingSystem: string(providerconfigtypes.OperatingSystemUbuntu),
 		SuppertedVersions: []string{
 			string(providerconfigtypes.DefaultOperatingSystemVersion),
 			"18.04",

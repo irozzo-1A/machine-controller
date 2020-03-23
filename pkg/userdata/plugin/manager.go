@@ -73,6 +73,7 @@ func NewManager() (*Manager, error) {
 
 // ForOS returns the plugin for the given operating system.
 func (m *Manager) ForOS(os providerconfigtypes.OperatingSystem, version providerconfigtypes.OperatingSystemVersion) (p *PluginProxy, err error) {
+	klog.V(1).Infof("Looking up for os %s version %s: %+v", os, version, m.plugins)
 	var found bool
 	if p, found = m.plugins[os][version]; !found {
 		return nil, ErrPluginNotFound
@@ -83,6 +84,7 @@ func (m *Manager) ForOS(os providerconfigtypes.OperatingSystem, version provider
 // locatePlugins tries to find the plugins and inits their wrapper.
 func (m *Manager) locatePlugins() {
 	for _, os := range supportedOS {
+		m.plugins[os] = map[providerconfigtypes.OperatingSystemVersion]*PluginProxy{}
 		plugin, err := newPlugin(os, m.debug)
 		if err != nil {
 			klog.Errorf("cannot use plugin '%v': %v", os, err)

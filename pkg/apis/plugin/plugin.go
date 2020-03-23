@@ -63,8 +63,8 @@ type UserDataResponse struct {
 
 // Info contains some information about the plugin.
 type Info struct {
-	OperatingSystem   string
-	SuppertedVersions []string
+	OperatingSystem   string   `json:"operatingSystem"`
+	SuppertedVersions []string `json:"operatingSystemVersion"`
 }
 
 // ErrorResponse contains a single responded error.

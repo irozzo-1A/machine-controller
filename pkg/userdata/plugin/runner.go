@@ -62,7 +62,7 @@ func newPlugin(os providerconfigtypes.OperatingSystem, debug bool) (*PluginProxy
 }
 
 func (p *PluginProxy) runCommand(args []string, env ...string) ([]byte, error) {
-	argv := make([]string, len(args)+1, len(args))
+	argv := make([]string, len(args), len(args)+1)
 	copy(argv, args)
 	// Prepare command.
 	if p.debug {
@@ -110,7 +110,7 @@ func (p *PluginProxy) Info() (*plugin.Info, error) {
 	var resp plugin.Info
 	err = json.Unmarshal(i, &resp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error occurred while unmarshaling %s: %v", string(i), err)
 	}
 	return &resp, nil
 }
