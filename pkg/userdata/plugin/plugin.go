@@ -28,13 +28,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kubermatic/machine-controller/pkg/apis/plugin"
+	plugin "github.com/kubermatic/machine-controller/pkg/apis/plugin"
 )
 
 // Provider defines the interface each plugin has to implement
 // for the retrieval of the userdata based on the given arguments.
 type Provider interface {
 	UserData(req plugin.UserDataRequest) (string, error)
+	Info() (*plugin.Info, error)
 }
 
 // Plugin implements a convenient helper to map the request to the given
@@ -75,6 +76,14 @@ func (p *Plugin) Run() error {
 		resp.UserData = userData
 	}
 	return p.printResponse(resp)
+}
+
+func (p *Plugin) Info() error {
+	info, err := p.provider.Info()
+	if err != nil {
+		return fmt.Errorf("Error occurred while getting provider info.")
+	}
+	return p.printResponse(info)
 }
 
 // printResponse marshals the respons and prints it to stdout.

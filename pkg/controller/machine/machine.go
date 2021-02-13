@@ -37,7 +37,6 @@ import (
 	"github.com/kubermatic/machine-controller/pkg/node/eviction"
 	"github.com/kubermatic/machine-controller/pkg/providerconfig"
 	providerconfigtypes "github.com/kubermatic/machine-controller/pkg/providerconfig/types"
-	userdatamanager "github.com/kubermatic/machine-controller/pkg/userdata/manager"
 	userdataplugin "github.com/kubermatic/machine-controller/pkg/userdata/plugin"
 
 	corev1 "k8s.io/api/core/v1"
@@ -98,7 +97,7 @@ type Reconciler struct {
 	metrics                          *MetricsCollection
 	kubeconfigProvider               KubeconfigProvider
 	providerData                     *cloudprovidertypes.ProviderData
-	userDataManager                  *userdatamanager.Manager
+	userDataManager                  *userdataplugin.Manager
 	joinClusterTimeout               *time.Duration
 	externalCloudProvider            bool
 	name                             string
@@ -168,7 +167,7 @@ func Add(
 		skipEvictionAfter:                skipEvictionAfter,
 		nodeSettings:                     nodeSettings,
 	}
-	m, err := userdatamanager.New()
+	m, err := userdataplugin.NewManager()
 	if err != nil {
 		return fmt.Errorf("failed to create userdatamanager: %v", err)
 	}
@@ -395,9 +394,9 @@ func (r *Reconciler) reconcile(machine *clusterv1alpha1.Machine) (*reconcile.Res
 	}
 
 	// Step 3: Essentially creates an instance for the given machine.
-	userdataPlugin, err := r.userDataManager.ForOS(providerConfig.OperatingSystem)
+	userdataPlugin, err := r.userDataManager.ForOS(providerConfig.OperatingSystem, providerConfig.OperatingSystemVersion)
 	if err != nil {
-		return nil, fmt.Errorf("failed to userdata provider for '%s': %v", providerConfig.OperatingSystem, err)
+		return nil, fmt.Errorf("failed to get userdata provider for '%s': %v", providerConfig.OperatingSystem, err)
 	}
 
 	// case 3.2: creates an instance if there is no node associated with the given machine
@@ -624,6 +623,7 @@ func (r *Reconciler) ensureInstanceExistsForMachine(
 				HyperkubeImage:        r.nodeSettings.HyperkubeImage,
 				NoProxy:               r.nodeSettings.NoProxy,
 				HTTPProxy:             r.nodeSettings.HTTPProxy,
+				OsVersion:             string(providerConfig.OperatingSystemVersion),
 			}
 			userdata, err := userdataPlugin.UserData(req)
 			if err != nil {

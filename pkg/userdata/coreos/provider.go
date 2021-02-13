@@ -31,10 +31,23 @@ import (
 	"github.com/kubermatic/machine-controller/pkg/apis/plugin"
 	providerconfigtypes "github.com/kubermatic/machine-controller/pkg/providerconfig/types"
 	userdatahelper "github.com/kubermatic/machine-controller/pkg/userdata/helper"
+	userdataplugin "github.com/kubermatic/machine-controller/pkg/userdata/plugin"
 )
+
+var _ userdataplugin.Provider = &Provider{}
 
 // Provider is a pkg/userdata/plugin.Provider implementation.
 type Provider struct{}
+
+func (p Provider) Info() (*plugin.Info, error) {
+	return &plugin.Info{
+		OperatingSystem: string(providerconfigtypes.OperatingSystemCoreos),
+		SuppertedVersions: []string{
+			string(providerconfigtypes.DefaultOperatingSystemVersion),
+			"2345.3.0",
+		},
+	}, nil
+}
 
 // UserData renders user-data template to string.
 func (p Provider) UserData(req plugin.UserDataRequest) (string, error) {

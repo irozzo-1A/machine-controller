@@ -20,7 +20,7 @@ limitations under the License.
 
 // Package manager provides the instantiation and
 // running of the plugins on machine controller side.
-package manager
+package plugin
 
 import (
 	"errors"
@@ -55,13 +55,13 @@ var (
 // Manager inits and manages the userdata plugins.
 type Manager struct {
 	debug   bool
-	plugins map[providerconfigtypes.OperatingSystem]*Plugin
+	plugins map[providerconfigtypes.OperatingSystem]map[providerconfigtypes.OperatingSystemVersion]*PluginProxy
 }
 
-// New returns an initialised plugin manager.
-func New() (*Manager, error) {
+// NewManager returns an initialised plugin manager.
+func NewManager() (*Manager, error) {
 	m := &Manager{
-		plugins: make(map[providerconfigtypes.OperatingSystem]*Plugin),
+		plugins: make(map[providerconfigtypes.OperatingSystem]map[providerconfigtypes.OperatingSystemVersion]*PluginProxy),
 	}
 	flag.BoolVar(&m.debug, "plugin-debug", false, "Switch for enabling the plugin debugging")
 	m.locatePlugins()
@@ -72,9 +72,10 @@ func New() (*Manager, error) {
 }
 
 // ForOS returns the plugin for the given operating system.
-func (m *Manager) ForOS(os providerconfigtypes.OperatingSystem) (p *Plugin, err error) {
+func (m *Manager) ForOS(os providerconfigtypes.OperatingSystem, version providerconfigtypes.OperatingSystemVersion) (p *PluginProxy, err error) {
+	klog.V(1).Infof("Looking up for os %s version %s: %+v", os, version, m.plugins)
 	var found bool
-	if p, found = m.plugins[os]; !found {
+	if p, found = m.plugins[os][version]; !found {
 		return nil, ErrPluginNotFound
 	}
 	return p, nil
@@ -83,11 +84,20 @@ func (m *Manager) ForOS(os providerconfigtypes.OperatingSystem) (p *Plugin, err 
 // locatePlugins tries to find the plugins and inits their wrapper.
 func (m *Manager) locatePlugins() {
 	for _, os := range supportedOS {
+		m.plugins[os] = map[providerconfigtypes.OperatingSystemVersion]*PluginProxy{}
 		plugin, err := newPlugin(os, m.debug)
 		if err != nil {
 			klog.Errorf("cannot use plugin '%v': %v", os, err)
 			continue
 		}
-		m.plugins[os] = plugin
+		info, err := plugin.Info()
+		if err != nil {
+			klog.Errorf("error occurred while obtaining plugin information: %v", err)
+			m.plugins[os][providerconfigtypes.DefaultOperatingSystemVersion] = plugin
+		} else {
+			for _, v := range info.SuppertedVersions {
+				m.plugins[os][providerconfigtypes.OperatingSystemVersion(v)] = plugin
+			}
+		}
 	}
 }

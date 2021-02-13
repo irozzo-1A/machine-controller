@@ -100,7 +100,7 @@ func (ad *admissionData) defaultAndValidateMachineSpec(spec *clusterv1alpha1.Mac
 	}
 
 	// Verify operating system.
-	if _, err := ad.userDataManager.ForOS(providerConfig.OperatingSystem); err != nil {
+	if _, err := ad.userDataManager.ForOS(providerConfig.OperatingSystem, providerConfig.OperatingSystemVersion); err != nil {
 		return fmt.Errorf("failed to get OS '%s': %v", providerConfig.OperatingSystem, err)
 	}
 

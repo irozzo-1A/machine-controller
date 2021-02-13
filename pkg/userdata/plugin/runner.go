@@ -18,7 +18,7 @@ limitations under the License.
 // UserData plugin manager.
 //
 
-package manager
+package plugin
 
 import (
 	"encoding/json"
@@ -39,17 +39,20 @@ const (
 	pluginPrefix = "machine-controller-userdata-"
 )
 
-// Plugin looks for the plugin executable and calls it for
+// Ensures that PluginProxy implements the provider interface.
+var _ Provider = &PluginProxy{}
+
+// PluginProxy looks for the plugin executable and calls it for
 // each request.
-type Plugin struct {
+type PluginProxy struct {
 	debug   bool
 	command string
 }
 
 // newPlugin creates a new plugin manager. It starts the named
 // binary and connects to it via net/rpc.
-func newPlugin(os providerconfigtypes.OperatingSystem, debug bool) (*Plugin, error) {
-	p := &Plugin{
+func newPlugin(os providerconfigtypes.OperatingSystem, debug bool) (*PluginProxy, error) {
+	p := &PluginProxy{
 		debug: debug,
 	}
 	if err := p.findPlugin(string(os)); err != nil {
@@ -58,39 +61,62 @@ func newPlugin(os providerconfigtypes.OperatingSystem, debug bool) (*Plugin, err
 	return p, nil
 }
 
-// UserData retrieves the user data of the given resource via
-// plugin handling the communication.
-func (p *Plugin) UserData(req plugin.UserDataRequest) (string, error) {
+func (p *PluginProxy) runCommand(args []string, env ...string) ([]byte, error) {
+	argv := make([]string, len(args), len(args)+1)
+	copy(argv, args)
 	// Prepare command.
-	var argv []string
 	if p.debug {
 		argv = append(argv, "-debug")
 	}
 	cmd := exec.Command(p.command, argv...)
+	cmd.Env = append(os.Environ(), env...)
+	// Execute command.
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute command %q: output: %q error: %q", p.command, string(out), err)
+	}
+	return out, nil
+}
+
+// UserData retrieves the user data of the given resource via
+// plugin handling the communication.
+func (p *PluginProxy) UserData(req plugin.UserDataRequest) (string, error) {
 	// Set environment.
 	reqj, err := json.Marshal(req)
 	if err != nil {
 		return "", err
 	}
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", plugin.EnvUserDataRequest, string(reqj)))
-	// Execute command.
-	out, err := cmd.CombinedOutput()
+	env := fmt.Sprintf("%s=%s", plugin.EnvUserDataRequest, string(reqj))
+	out, err := p.runCommand([]string{}, env)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute command %q: output: %q error: %q", p.command, string(out), err)
+		return "", fmt.Errorf("error occurred while running userdata command: %v", err)
 	}
 	var resp plugin.UserDataResponse
 	err = json.Unmarshal(out, &resp)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error occurred while unmarshaling userdata response: %v", err)
 	}
 	if resp.Err != "" {
-		return "", fmt.Errorf("%s", resp.Err)
+		return "", fmt.Errorf("error occurred during userdata generation: %v", resp.Err)
 	}
 	return resp.UserData, nil
 }
 
+func (p *PluginProxy) Info() (*plugin.Info, error) {
+	i, err := p.runCommand([]string{"-info"})
+	if err != nil {
+		return nil, fmt.Errorf("error occurred during info command execution: %v", err)
+	}
+	var resp plugin.Info
+	err = json.Unmarshal(i, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("error occurred while unmarshaling %s: %v", string(i), err)
+	}
+	return &resp, nil
+}
+
 // findPlugin tries to find the executable of the plugin.
-func (p *Plugin) findPlugin(name string) error {
+func (p *PluginProxy) findPlugin(name string) error {
 	filename := pluginPrefix + name
 	klog.Infof("looking for plugin %q", filename)
 	// Create list to search in.

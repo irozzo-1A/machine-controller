@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	clusterv1alpha1 "github.com/kubermatic/machine-controller/pkg/apis/cluster/v1alpha1"
 
@@ -38,6 +39,13 @@ const (
 	OperatingSystemCentOS OperatingSystem = "centos"
 	OperatingSystemSLES   OperatingSystem = "sles"
 	OperatingSystemRHEL   OperatingSystem = "rhel"
+)
+
+// OperatingSystemVersion defines the operating system version
+type OperatingSystemVersion string
+
+const (
+	DefaultOperatingSystemVersion OperatingSystemVersion = ""
 )
 
 type CloudProvider string
@@ -104,8 +112,9 @@ type Config struct {
 	CloudProvider     CloudProvider        `json:"cloudProvider"`
 	CloudProviderSpec runtime.RawExtension `json:"cloudProviderSpec"`
 
-	OperatingSystem     OperatingSystem      `json:"operatingSystem"`
-	OperatingSystemSpec runtime.RawExtension `json:"operatingSystemSpec"`
+	OperatingSystem        OperatingSystem        `json:"operatingSystem"`
+	OperatingSystemVersion OperatingSystemVersion `json:"operatingSystemVersion"`
+	OperatingSystemSpec    runtime.RawExtension   `json:"operatingSystemSpec"`
 
 	// +optional
 	Network *NetworkConfig `json:"network,omitempty"`
@@ -184,6 +193,14 @@ func (configVarString ConfigVarString) MarshalJSON() ([]byte, error) {
 
 	buffer.WriteString("}")
 	return buffer.Bytes(), nil
+}
+
+// UnmarshalJSON used to unmarshal the OS version avoiding conversion issues.
+// TODO(irozzo): Investigate json: cannot unmarshal number into Go struct field Config.operatingSystemVersion of type types.OperatingSystemVersion
+func (osv *OperatingSystemVersion) UnmarshalJSON(b []byte) error {
+	v := strings.Trim(string(b), `"`)
+	*osv = OperatingSystemVersion(v)
+	return nil
 }
 
 func (configVarString *ConfigVarString) UnmarshalJSON(b []byte) error {
@@ -291,7 +308,7 @@ func GetConfig(r clusterv1alpha1.ProviderSpec) (*Config, error) {
 		return p, nil
 	}
 	if err := json.Unmarshal(r.Value.Raw, p); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error occured while unmarshaling %s: %v", string(r.Value.Raw), err)
 	}
 	return p, nil
 }
